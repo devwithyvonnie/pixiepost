@@ -62,3 +62,66 @@ exports.getAnalytics = async (req, res) => {
     return res.status(500).json({ message: 'Failed to fetch analytics.' });
   }
 };
+
+exports.getTripTrends = async (req, res) => {
+  try {
+    const agentId = req.agent.id;
+
+    const trends = await Trip.aggregate([
+      {
+        $match: { agentId: new mongoose.Types.ObjectId(agentId) }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1 } }
+    ]);
+
+    const tripsByMonth = trends.map(entry => ({
+      month: `${entry._id.year}-${String(entry._id.month).padStart(2, '0')}`,
+      count: entry.count
+    }));
+
+    return res.json({ tripsByMonth });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to fetch trip trends.' });
+  }
+};
+
+exports.getTopDestinations = async (req, res) => {
+  try {
+    const agentId = req.agent.id;
+    const { limit = 5 } = req.query; // Allow optional limit (default 5)
+
+    const topDestinationsAgg = await Trip.aggregate([
+      {
+        $match: { agentId: new mongoose.Types.ObjectId(agentId) }
+      },
+      {
+        $group: {
+          _id: '$destination',
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: parseInt(limit) }
+    ]);
+
+    const topDestinations = topDestinationsAgg.map(entry => ({
+      destination: entry._id,
+      trips: entry.count
+    }));
+
+    return res.json({ topDestinations });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to fetch top destinations.' });
+  }
+};

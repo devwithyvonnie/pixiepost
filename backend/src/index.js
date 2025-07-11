@@ -1,10 +1,24 @@
 require('dotenv').config();
+const dotenv = require('dotenv');
 const express = require('express');
 const connectDB = require('./config/db');
+const apiRateLimiter = require('./middlewares/rateLimiter'); 
+
+dotenv.config();
 
 const app = express();
 
 app.use(express.json());
+
+app.use(apiRateLimiter);
+
+const cors = require('cors');
+
+// 👇 Add this *before* your routes:
+app.use(cors({
+  origin: 'http://localhost:3000',  // Allow requests from Next.js frontend
+}));
+
 
 // Example route
 app.get('/', (req, res) => {
